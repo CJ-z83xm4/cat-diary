@@ -138,6 +138,7 @@
         }
 
         .emoji-section {
+            position: relative;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -174,7 +175,9 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
             position: absolute;
             z-index: 10;
-            top: 90px;
+            top: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         .emoji-picker.active {
@@ -259,6 +262,12 @@
 
         .rename-btn:hover {
             background: #0077ED;
+        }
+
+        .rename-btn.rename-cancel {
+            background: white;
+            color: #0071E3;
+            border: 1px solid #D2D2D7;
         }
 
         .stat-line {
@@ -426,6 +435,17 @@
         .checkbox-label {
             cursor: pointer;
             font-size: 16px;
+        }
+
+        .form-error {
+            display: none;
+            color: #D70015;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-error.active {
+            display: block;
         }
 
         .form-actions {
@@ -637,9 +657,6 @@
                 gap: 16px;
             }
 
-            .emoji-picker {
-                top: 75px;
-            }
         }
     </style>
 </head>
@@ -660,6 +677,760 @@
 
         <div class="identity-card" id="identity-card">
             <div class="emoji-section">
-                <button class="emoji-btn" id="emoji-btn" onclick="app.toggleEmojiPicker()">🐱</button>
+                <button class="emoji-btn" id="emoji-btn" aria-label="更換頭像" onclick="app.toggleEmojiPicker()">🐱</button>
                 <div class="emoji-picker" id="emoji-picker">
                     <button class="emoji-option" onclick="app.changeEmoji('🐱')">🐱</button>
+                    <button class="emoji-option" onclick="app.changeEmoji('🐈')">🐈</button>
+                    <button class="emoji-option" onclick="app.changeEmoji('😸')">😸</button>
+                    <button class="emoji-option" onclick="app.changeEmoji('😺')">😺</button>
+                    <button class="emoji-option" onclick="app.changeEmoji('😹')">😹</button>
+                    <button class="emoji-option" onclick="app.changeEmoji('😻')">😻</button>
+                    <button class="emoji-option" onclick="app.changeEmoji('🙀')">🙀</button>
+                    <button class="emoji-option" onclick="app.changeEmoji('😾')">😾</button>
+                    <button class="emoji-option" onclick="app.changeEmoji('😿')">😿</button>
+                </div>
+            </div>
+            <div class="cat-info">
+                <div class="cat-name" id="cat-name" onclick="app.startRename()">
+                    <span id="cat-name-text"></span>
+                    <span class="edit-hint">編輯</span>
+                </div>
+                <div class="rename-input-group" id="rename-input-group">
+                    <input type="text" class="rename-input" id="name-input" placeholder="輸入新名字" maxlength="20">
+                    <button class="rename-btn" onclick="app.saveRename()">儲存</button>
+                    <button class="rename-btn rename-cancel" onclick="app.cancelRename()">取消</button>
+                </div>
+                <div class="stat-line" id="stat-line">還沒有任何記錄</div>
+            </div>
+        </div>
+
+        <div class="card" id="chart-card" style="display: none;">
+            <div class="card-title">體重趨勢</div>
+            <div class="chart-container">
+                <svg class="chart" id="chart-svg" style="width: 100%; height: 100%;"></svg>
+            </div>
+        </div>
+
+        <button class="add-btn" id="add-btn" onclick="app.startAdd()">＋ 新增記錄</button>
+
+        <div class="form-card" id="form-card">
+            <h2 class="card-title" id="form-title">新增記錄</h2>
+
+            <div class="form-field">
+                <label class="form-label" for="form-date">日期</label>
+                <input type="date" id="form-date">
+            </div>
+
+            <div class="form-field">
+                <label class="form-label" for="form-weight">體重 (kg)</label>
+                <input type="text" id="form-weight" inputmode="decimal" autocomplete="off" placeholder="例如 4.23">
+            </div>
+
+            <div class="form-field">
+                <label class="form-label">精神狀態</label>
+                <div class="segment-group" id="spirit-group"></div>
+            </div>
+
+            <div class="form-field">
+                <label class="form-label">食慾</label>
+                <div class="segment-group" id="appetite-group"></div>
+            </div>
+
+            <div class="form-field">
+                <label class="form-label">飲水</label>
+                <div class="segment-group" id="water-group"></div>
+            </div>
+
+            <div class="form-field">
+                <label class="form-label">排尿排便</label>
+                <div class="segment-group" id="litter-group"></div>
+            </div>
+
+            <div class="form-field">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="form-vomit">
+                    <label class="checkbox-label" for="form-vomit">今天有嘔吐</label>
+                </div>
+            </div>
+
+            <div class="form-field">
+                <label class="form-label" for="form-symptoms">其他症狀（選填）</label>
+                <textarea id="form-symptoms" placeholder="例如：一直舔同一隻腳、打噴嚏…"></textarea>
+            </div>
+
+            <div class="form-field">
+                <label class="form-label" for="form-medication">用藥／回診（選填）</label>
+                <input type="text" id="form-medication" placeholder="例如：早晚各一顆腸胃藥">
+            </div>
+
+            <div class="form-field">
+                <label class="form-label" for="form-note">備註（選填）</label>
+                <textarea id="form-note" placeholder="任何想記下來的小事"></textarea>
+            </div>
+
+            <div class="form-error" id="form-error"></div>
+
+            <div class="form-actions">
+                <button class="btn-primary" id="form-submit" onclick="app.saveForm()">新增這筆記錄</button>
+                <button class="btn-secondary" onclick="app.closeForm()">取消</button>
+            </div>
+        </div>
+
+        <div class="entries-section">
+            <div class="card-title">健康紀錄</div>
+            <div class="entries-list" id="entries-list"></div>
+        </div>
+
+        <footer>資料存在雲端，你和老婆的手機、電腦會即時同步</footer>
+    </div>
+
+    <!-- 使用 compat 版本才會提供全域 firebase 物件（非 compat 版是 ES module） -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBTQXSTcN7DOeTL10fVUWPnnI-3Ob6nKIw",
+            authDomain: "cat-diary-91bfc.firebaseapp.com",
+            databaseURL: "https://cat-diary-91bfc-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "cat-diary-91bfc",
+            storageBucket: "cat-diary-91bfc.firebasestorage.app",
+            messagingSenderId: "792394348363",
+            appId: "1:792394348363:web:56e65ecdf9b602cf051ace",
+        };
+
+        let db = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        } catch (e) {
+            console.error("Firebase 初始化出錯:", e);
+        }
+
+        const DEFAULT_CATS = [
+            { id: "cat-1", name: "弟弟", emoji: "🐱" },
+            { id: "cat-2", name: "小花", emoji: "🐈" },
+            { id: "cat-3", name: "小灰", emoji: "😸" },
+        ];
+
+        const OPTIONS = {
+            spirit: ["活潑好動", "正常", "稍微低落", "明顯低落"],
+            appetite: ["良好", "普通", "不佳", "完全不吃"],
+            water: ["正常", "偏少", "偏多"],
+            litter: ["正常", "異常"],
+        };
+
+        const TONE_MAP = {
+            spirit: { 活潑好動: "good", 正常: "neutral", 稍微低落: "watch", 明顯低落: "alert" },
+            appetite: { 良好: "good", 普通: "neutral", 不佳: "watch", 完全不吃: "alert" },
+            water: { 正常: "neutral", 偏少: "watch", 偏多: "watch" },
+            litter: { 正常: "neutral", 異常: "alert" },
+        };
+
+        const MAX_WEIGHT_KG = 30;
+
+        function escapeHtml(value) {
+            return String(value == null ? "" : value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        // 將 Firebase 節點（可能是陣列或物件）轉為陣列，並記住每筆在資料庫中的 key
+        function toKeyedList(node) {
+            if (!node) return [];
+            const pairs = Array.isArray(node)
+                ? node.map((v, i) => [String(i), v])
+                : Object.entries(node);
+            return pairs
+                .filter(([, v]) => v && typeof v === "object")
+                .map(([k, v]) => ({ ...v, _key: k }));
+        }
+
+        function stripKey(obj) {
+            const { _key, ...rest } = obj;
+            return rest;
+        }
+
+        // 新到舊；同一天則以建立順序（id 內含時間戳）排序
+        function compareEntriesDesc(a, b) {
+            return String(b.date || "").localeCompare(String(a.date || ""))
+                || String(b.id || "").localeCompare(String(a.id || ""));
+        }
+
+        // 解析使用者輸入的體重，可自由輸入任意小數；接受全形數字與逗號小數點
+        function parseWeight(raw) {
+            const text = String(raw || "")
+                .trim()
+                .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+                .replace(/[，,．。]/g, ".")
+                .replace(/\s*(kg|公斤)$/i, "");
+            if (text === "") return { value: "" };
+            if (!/^(\d+(\.\d*)?|\.\d+)$/.test(text)) {
+                return { error: "體重請輸入數字，例如 4.23" };
+            }
+            const num = Number(text);
+            if (!(num > 0) || num > MAX_WEIGHT_KG) {
+                return { error: `體重需介於 0 到 ${MAX_WEIGHT_KG} 公斤之間` };
+            }
+            return { value: String(num) };
+        }
+
+        const app = {
+            data: null,
+            activeCatId: null,
+            editingKey: null,
+            form: {},
+            isConnected: false,
+            statusError: null,
+
+            init() {
+                // 1. 先以預設資料渲染，保證分頁立即出現
+                this.data = { cats: DEFAULT_CATS.map(c => ({ ...c, _key: null })), entries: {} };
+                this.activeCatId = this.data.cats[0].id;
+                this.renderSegments();
+                this.bindEvents();
+                this.renderAll();
+
+                if (!db) {
+                    this.statusError = "離線模式（無法連接資料庫，資料不會保存）";
+                    this.updateSyncStatus();
+                    return;
+                }
+
+                // 2. 監聽 Firebase 網路連線狀態
+                db.ref(".info/connected").on("value", (snapshot) => {
+                    this.isConnected = Boolean(snapshot.val());
+                    this.updateSyncStatus();
+                });
+
+                // 3. 監聽並讀取雲端資料
+                db.ref("data").on("value", (snapshot) => {
+                    this.applyRemoteData(snapshot.val());
+                }, (error) => {
+                    console.error("Firebase 讀取權限錯誤:", error);
+                    this.statusError = "資料庫權限拒絕（請檢查 Rules）";
+                    this.updateSyncStatus();
+                });
+            },
+
+            applyRemoteData(val) {
+                let cats = toKeyedList(val && val.cats).filter(c => c.id);
+                if (cats.length === 0) {
+                    // 雲端尚無貓咪資料：以 transaction 寫入預設值，避免多台裝置互相覆蓋
+                    cats = DEFAULT_CATS.map((c, i) => ({ ...c, _key: String(i) }));
+                    db.ref("data/cats").transaction(current => current || DEFAULT_CATS)
+                        .catch(err => this.reportWriteError(err));
+                }
+
+                const rawEntries = (val && val.entries) || {};
+                const entries = {};
+                cats.forEach(c => {
+                    entries[c.id] = toKeyedList(rawEntries[c.id]);
+                });
+                this.data = { cats, entries };
+
+                if (!cats.some(c => c.id === this.activeCatId)) {
+                    this.activeCatId = cats[0].id;
+                    this.closeForm();
+                }
+                // 不關閉正在填寫的表單，避免另一台裝置寫入時打斷輸入
+                this.renderAll();
+            },
+
+            bindEvents() {
+                // 動態產生的按鈕以事件委派處理，避免把資料塞進 inline onclick
+                document.getElementById("tabs").addEventListener("click", (ev) => {
+                    const btn = ev.target.closest("[data-cat-id]");
+                    if (btn) this.switchCat(btn.dataset.catId);
+                });
+
+                document.getElementById("entries-list").addEventListener("click", (ev) => {
+                    const btn = ev.target.closest("[data-action]");
+                    if (!btn) return;
+                    if (btn.dataset.action === "edit") this.editEntry(btn.dataset.key);
+                    if (btn.dataset.action === "delete") this.deleteEntry(btn.dataset.key);
+                });
+
+                ["spirit", "appetite", "water", "litter"].forEach(field => {
+                    document.getElementById(`${field}-group`).addEventListener("click", (ev) => {
+                        const btn = ev.target.closest("[data-value]");
+                        if (btn) this.updateForm(field, btn.dataset.value);
+                    });
+                });
+
+                const nameInput = document.getElementById("name-input");
+                nameInput.addEventListener("keydown", (ev) => {
+                    if (ev.isComposing) return; // 注音輸入選字時的 Enter 不算送出
+                    if (ev.key === "Enter") this.saveRename();
+                    if (ev.key === "Escape") this.cancelRename();
+                });
+
+                // 點擊選單外部時關閉 emoji 選單
+                document.addEventListener("click", (ev) => {
+                    if (!ev.target.closest(".emoji-section")) {
+                        document.getElementById("emoji-picker").classList.remove("active");
+                    }
+                });
+
+                let resizeTimer = null;
+                window.addEventListener("resize", () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => this.renderChart(), 150);
+                });
+            },
+
+            updateSyncStatus() {
+                const status = document.getElementById("sync-status");
+                if (!status) return;
+                if (this.statusError) {
+                    status.textContent = this.statusError;
+                    status.className = "sync-status disconnected";
+                } else if (this.isConnected) {
+                    status.textContent = "已連接";
+                    status.className = "sync-status connected";
+                } else {
+                    status.textContent = "離線中（連線後會自動同步）";
+                    status.className = "sync-status disconnected";
+                }
+            },
+
+            reportWriteError(err) {
+                console.error("保存失敗:", err);
+                alert("保存失敗，請檢查網路或資料庫權限。");
+            },
+
+            getCat(catId = this.activeCatId) {
+                return this.data.cats.find(c => c.id === catId) || null;
+            },
+
+            getEntries(catId = this.activeCatId) {
+                return (this.data.entries && this.data.entries[catId]) || [];
+            },
+
+            // 只寫入單一筆紀錄，而非整包資料，避免多台裝置同時編輯時互相覆蓋
+            writeEntry(catId, entry) {
+                const key = entry._key || entry.id;
+                const list = this.getEntries(catId).filter(e => e._key !== key);
+                list.push({ ...entry, _key: key });
+                this.data.entries[catId] = list;
+                if (db) {
+                    db.ref(`data/entries/${catId}/${key}`).set(stripKey(entry))
+                        .catch(err => this.reportWriteError(err));
+                }
+            },
+
+            removeEntry(catId, key) {
+                this.data.entries[catId] = this.getEntries(catId).filter(e => e._key !== key);
+                if (db) {
+                    db.ref(`data/entries/${catId}/${key}`).remove()
+                        .catch(err => this.reportWriteError(err));
+                }
+            },
+
+            updateCat(catId, changes) {
+                const cat = this.getCat(catId);
+                if (!cat) return;
+                Object.assign(cat, changes);
+                if (db && cat._key != null) {
+                    db.ref(`data/cats/${cat._key}`).update(changes)
+                        .catch(err => this.reportWriteError(err));
+                }
+            },
+
+            renderAll() {
+                this.renderTabs();
+                this.renderIdentity();
+                this.renderChart();
+                this.renderEntries();
+            },
+
+            renderTabs() {
+                const html = this.data.cats.map(cat =>
+                    `<button class="tab ${cat.id === this.activeCatId ? 'active' : ''}" data-cat-id="${escapeHtml(cat.id)}">
+                        <span>${escapeHtml(cat.emoji)}</span>${escapeHtml(cat.name)}
+                    </button>`
+                ).join("");
+                document.getElementById("tabs").innerHTML = html;
+            },
+
+            switchCat(catId) {
+                this.activeCatId = catId;
+                this.closeForm();
+                this.cancelRename();
+                document.getElementById("emoji-picker").classList.remove("active");
+                this.renderAll();
+            },
+
+            renderIdentity() {
+                const cat = this.getCat();
+                if (!cat) return;
+                document.getElementById("emoji-btn").textContent = cat.emoji;
+                document.getElementById("cat-name-text").textContent = cat.name;
+                this.updateStatLine();
+            },
+
+            updateStatLine() {
+                const entries = this.getEntries();
+                const sorted = [...entries].sort(compareEntriesDesc);
+                const latest = sorted[0];
+                // 體重比較：取「有填體重」的最近兩筆
+                const weighted = sorted.filter(e => e.weight);
+
+                let html = latest ?
+                    `最近記錄：${escapeHtml(this.formatDate(latest.date))}` :
+                    "還沒有任何記錄";
+
+                if (weighted.length > 0) {
+                    const cur = weighted[0];
+                    html += ` • 體重 ${escapeHtml(cur.weight)} kg`;
+                    if (cur !== latest) html += `（${escapeHtml(this.formatDate(cur.date))}）`;
+                    if (weighted.length > 1) {
+                        const diff = Math.round((Number(cur.weight) - Number(weighted[1].weight)) * 100) / 100;
+                        const diffAbs = Math.abs(diff).toFixed(2);
+                        if (diff > 0) {
+                            html += `<span class="weight-change weight-up">↑ ${diffAbs}</span>`;
+                        } else if (diff < 0) {
+                            html += `<span class="weight-change weight-down">↓ ${diffAbs}</span>`;
+                        } else {
+                            html += `<span class="weight-change weight-stable">→ ${diffAbs}</span>`;
+                        }
+                    }
+                }
+                html += ` • 共 ${entries.length} 筆`;
+                document.getElementById("stat-line").innerHTML = html;
+            },
+
+            formatDate(iso) {
+                if (!iso) return "（未填日期）";
+                const d = new Date(iso + "T00:00:00");
+                if (isNaN(d)) return iso;
+                const wd = ["日", "一", "二", "三", "四", "五", "六"][d.getDay()];
+                return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} (${wd})`;
+            },
+
+            openForm(title, submitText) {
+                this.renderForm();
+                this.showFormError("");
+                document.getElementById("add-btn").classList.add("hidden");
+                document.getElementById("form-card").classList.add("active");
+                document.getElementById("form-title").textContent = title;
+                document.getElementById("form-submit").textContent = submitText;
+                document.getElementById("form-card").scrollIntoView({ behavior: "smooth", block: "start" });
+            },
+
+            startAdd() {
+                this.editingKey = null;
+                this.form = {
+                    date: this.todayStr(),
+                    weight: "",
+                    spirit: "正常",
+                    appetite: "良好",
+                    water: "正常",
+                    litter: "正常",
+                    vomit: false,
+                    symptoms: "",
+                    medication: "",
+                    note: "",
+                };
+                this.openForm("新增記錄", "新增這筆記錄");
+            },
+
+            closeForm() {
+                document.getElementById("add-btn").classList.remove("hidden");
+                document.getElementById("form-card").classList.remove("active");
+                this.editingKey = null;
+                this.form = {};
+            },
+
+            showFormError(msg) {
+                const el = document.getElementById("form-error");
+                el.textContent = msg;
+                el.classList.toggle("active", Boolean(msg));
+            },
+
+            renderForm() {
+                document.getElementById("form-date").value = this.form.date || "";
+                document.getElementById("form-weight").value = this.form.weight || "";
+                document.getElementById("form-vomit").checked = Boolean(this.form.vomit);
+                document.getElementById("form-symptoms").value = this.form.symptoms || "";
+                document.getElementById("form-medication").value = this.form.medication || "";
+                document.getElementById("form-note").value = this.form.note || "";
+                this.renderSegmentState();
+            },
+
+            renderSegmentState() {
+                ["spirit", "appetite", "water", "litter"].forEach(field => {
+                    document.getElementById(`${field}-group`).querySelectorAll(".segment").forEach(btn => {
+                        btn.classList.toggle("active", btn.dataset.value === this.form[field]);
+                    });
+                });
+            },
+
+            renderSegments() {
+                for (const [field, options] of Object.entries(OPTIONS)) {
+                    document.getElementById(`${field}-group`).innerHTML = options.map(opt =>
+                        `<button class="segment" type="button" data-value="${escapeHtml(opt)}">${escapeHtml(opt)}</button>`
+                    ).join("");
+                }
+            },
+
+            updateForm(field, value) {
+                // 只更新按鈕狀態，不重設其他欄位，避免已輸入的文字被清掉
+                this.form[field] = value;
+                this.renderSegmentState();
+            },
+
+            saveForm() {
+                const date = document.getElementById("form-date").value;
+                if (!date) {
+                    this.showFormError("請選擇日期");
+                    return;
+                }
+                const weight = parseWeight(document.getElementById("form-weight").value);
+                if (weight.error) {
+                    this.showFormError(weight.error);
+                    return;
+                }
+
+                const id = this.editingKey
+                    ? ((this.getEntries().find(e => e._key === this.editingKey) || {}).id || this.editingKey)
+                    : `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+                const entry = {
+                    id,
+                    date,
+                    weight: weight.value,
+                    spirit: this.form.spirit,
+                    appetite: this.form.appetite,
+                    water: this.form.water,
+                    litter: this.form.litter,
+                    vomit: document.getElementById("form-vomit").checked,
+                    symptoms: document.getElementById("form-symptoms").value.trim(),
+                    medication: document.getElementById("form-medication").value.trim(),
+                    note: document.getElementById("form-note").value.trim(),
+                    _key: this.editingKey || id,
+                };
+
+                this.writeEntry(this.activeCatId, entry);
+                this.closeForm();
+                this.renderAll();
+            },
+
+            renderChart() {
+                const weighted = this.getEntries()
+                    .filter(e => e.weight && e.date && !isNaN(Number(e.weight)))
+                    .sort((a, b) => compareEntriesDesc(b, a));
+
+                const card = document.getElementById("chart-card");
+                if (weighted.length < 2) {
+                    card.style.display = "none";
+                    return;
+                }
+                card.style.display = "block";
+                this.drawChart(weighted);
+            },
+
+            drawChart(entries) {
+                const svg = document.getElementById("chart-svg");
+                const container = svg.parentElement;
+                const w = container.offsetWidth || 600;
+                const h = container.offsetHeight || 300;
+                const padL = 48, padR = 16, padT = 16, padB = 32;
+                const graphW = w - padL - padR;
+                const graphH = h - padT - padB;
+
+                const weights = entries.map(e => Number(e.weight));
+                const minW = Math.min(...weights);
+                const maxW = Math.max(...weights);
+                const margin = Math.max((maxW - minW) * 0.15, 0.1);
+                const lo = minW - margin;
+                const range = (maxW + margin) - lo;
+
+                // X 軸依實際日期間隔；若全部同一天則平均分布
+                const times = entries.map(e => new Date(e.date + "T00:00:00").getTime());
+                const t0 = times[0];
+                const tSpan = times[times.length - 1] - t0;
+                const xAt = (i) => padL + (tSpan > 0 ? (times[i] - t0) / tSpan : i / (entries.length - 1)) * graphW;
+                const yAt = (v) => padT + graphH - ((v - lo) / range) * graphH;
+
+                const points = entries.map((e, i) => [xAt(i), yAt(Number(e.weight))]);
+                const line = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x} ${y}`).join(" ");
+                const baseY = padT + graphH;
+                const area = `${line} L${points[points.length - 1][0]} ${baseY} L${points[0][0]} ${baseY} Z`;
+
+                const label = (x, y, text, anchor) =>
+                    `<text x="${x}" y="${y}" font-size="12" fill="#6F6F77" text-anchor="${anchor}">${escapeHtml(text)}</text>`;
+
+                svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+                svg.innerHTML = `
+                    <defs>
+                        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#0071E3;stop-opacity:0.2" />
+                            <stop offset="100%" style="stop-color:#0071E3;stop-opacity:0" />
+                        </linearGradient>
+                    </defs>
+                    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY}" stroke="#E5E5E7" stroke-width="1.5"/>
+                    <line x1="${padL}" y1="${baseY}" x2="${w - padR}" y2="${baseY}" stroke="#E5E5E7" stroke-width="1.5"/>
+                    ${label(padL - 6, yAt(maxW) + 4, maxW.toFixed(2), "end")}
+                    ${minW !== maxW ? label(padL - 6, yAt(minW) + 4, minW.toFixed(2), "end") : ""}
+                    ${label(padL, h - 8, this.formatShortDate(entries[0].date), "start")}
+                    ${label(w - padR, h - 8, this.formatShortDate(entries[entries.length - 1].date), "end")}
+                    <path d="${area}" fill="url(#chartGradient)"/>
+                    <path d="${line}" stroke="#0071E3" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    ${points.map(([x, y], i) =>
+                        `<circle cx="${x}" cy="${y}" r="4" fill="white" stroke="#0071E3" stroke-width="2"><title>${escapeHtml(entries[i].date)}：${escapeHtml(entries[i].weight)} kg</title></circle>`
+                    ).join("")}
+                `;
+            },
+
+            formatShortDate(iso) {
+                const d = new Date(iso + "T00:00:00");
+                return isNaN(d) ? iso : `${d.getMonth() + 1}/${d.getDate()}`;
+            },
+
+            renderEntries() {
+                const sorted = [...this.getEntries()].sort(compareEntriesDesc);
+                const cat = this.getCat();
+                const catName = cat ? cat.name : "貓咪";
+                const list = document.getElementById("entries-list");
+
+                if (sorted.length === 0) {
+                    list.innerHTML = `<div class="empty-state">還沒有 ${escapeHtml(catName)} 的紀錄</div>`;
+                    return;
+                }
+                list.innerHTML = sorted.map(e => this.renderEntry(e)).join("");
+            },
+
+            renderEntry(e) {
+                const tone = (field, val) => (TONE_MAP[field] && TONE_MAP[field][val]) || "neutral";
+                const badge = (field, label, val) =>
+                    `<span class="badge badge-${tone(field, val)}">${label}・${escapeHtml(val)}</span>`;
+
+                const badges = [
+                    e.weight ? `<span class="badge badge-neutral">${escapeHtml(e.weight)} kg</span>` : "",
+                    badge("spirit", "精神", e.spirit),
+                    badge("appetite", "食慾", e.appetite),
+                    badge("water", "飲水", e.water),
+                    badge("litter", "如廁", e.litter),
+                    e.vomit ? `<span class="badge badge-alert">有嘔吐</span>` : "",
+                ].filter(b => b).join("");
+
+                const notes = [
+                    e.symptoms ? `症狀：${e.symptoms}` : "",
+                    e.medication ? `用藥／回診：${e.medication}` : "",
+                    e.note ? `備註：${e.note}` : "",
+                ].filter(n => n).map(n => `<div>• ${escapeHtml(n)}</div>`).join("");
+
+                const key = escapeHtml(e._key);
+                return `
+                    <div class="entry-card">
+                        <div class="entry-header">
+                            <div class="entry-date">${escapeHtml(this.formatDate(e.date))}</div>
+                            <div class="entry-actions">
+                                <button class="entry-action-btn" data-action="edit" data-key="${key}">編輯</button>
+                                <button class="entry-action-btn delete" data-action="delete" data-key="${key}">刪除</button>
+                            </div>
+                        </div>
+                        <div class="badges">${badges}</div>
+                        ${notes ? `<div class="entry-notes">${notes}</div>` : ""}
+                    </div>
+                `;
+            },
+
+            editEntry(key) {
+                const entry = this.getEntries().find(e => e._key === key);
+                if (!entry) return;
+                this.editingKey = key;
+                this.form = { ...entry };
+                this.openForm("編輯記錄", "儲存變更");
+            },
+
+            deleteEntry(key) {
+                if (!confirm("確定要刪除這筆記錄嗎？")) return;
+                this.removeEntry(this.activeCatId, key);
+                if (this.editingKey === key) this.closeForm();
+                this.renderAll();
+            },
+
+            startRename() {
+                const cat = this.getCat();
+                document.getElementById("cat-name").classList.add("hidden");
+                document.getElementById("rename-input-group").classList.add("active");
+                const input = document.getElementById("name-input");
+                input.value = cat ? cat.name : "";
+                input.focus();
+                input.select();
+            },
+
+            cancelRename() {
+                document.getElementById("cat-name").classList.remove("hidden");
+                document.getElementById("rename-input-group").classList.remove("active");
+            },
+
+            saveRename() {
+                const name = document.getElementById("name-input").value.trim();
+                if (!name) return;
+                this.updateCat(this.activeCatId, { name });
+                this.cancelRename();
+                this.renderAll();
+            },
+
+            toggleEmojiPicker() {
+                document.getElementById("emoji-picker").classList.toggle("active");
+            },
+
+            changeEmoji(emoji) {
+                this.updateCat(this.activeCatId, { emoji });
+                document.getElementById("emoji-picker").classList.remove("active");
+                this.renderAll();
+            },
+
+            exportToCSV() {
+                // 依 RFC 4180 以雙引號包住欄位、內部雙引號加倍；
+                // 開頭為 = + - @ 的文字前加 '，避免 Excel 當成公式執行
+                const cell = (v) => {
+                    let s = String(v == null ? "" : v);
+                    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+                    return `"${s.replace(/"/g, '""')}"`;
+                };
+
+                let csv = "﻿";
+                csv += "貓咪名字,日期,體重(kg),精神狀態,食慾,飲水,如廁,嘔吐,症狀,用藥/回診,備註\r\n";
+
+                this.data.cats.forEach(cat => {
+                    [...this.getEntries(cat.id)].sort((a, b) => compareEntriesDesc(b, a)).forEach(e => {
+                        const row = [
+                            cat.name, e.date, e.weight || "", e.spirit, e.appetite, e.water, e.litter,
+                            e.vomit ? "是" : "", e.symptoms, e.medication, e.note,
+                        ];
+                        csv += row.map(cell).join(",") + "\r\n";
+                    });
+                });
+
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `貓咪健康紀錄_${this.todayStr()}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            },
+
+            todayStr() {
+                const d = new Date();
+                const off = d.getTimezoneOffset();
+                const local = new Date(d.getTime() - off * 60000);
+                return local.toISOString().slice(0, 10);
+            }
+        };
+
+        // 啟動應用
+        app.init();
+    </script>
+</body>
+</html>
